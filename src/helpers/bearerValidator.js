@@ -1,5 +1,6 @@
-const logger = require('./logger');
 require('dotenv').config();
+const logger = require('./logger');
+
 
 const validateBearerToken = (req, res, next) => {
     const apiToken = process.env.API_TOKEN

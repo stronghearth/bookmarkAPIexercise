@@ -1,3 +1,5 @@
+require('dotenv').config();
+const { NODE_ENV } = require('../config');
 const winston = require('winston');
 
 const logger = winston.createLogger({
