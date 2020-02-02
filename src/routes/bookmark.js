@@ -1,14 +1,21 @@
+require('dotenv').config
 const express = require('express');
 const bookmarkRouter = express.Router();
 const logger = require('../helpers/logger');
 const STORE = require('../store');
 const uuid = require('uuid/v4')
 const bodyParser = express.json();
+const { BookmarksService } = require('../../services/BookmarksService')
+
 
 bookmarkRouter
     .route('/')
-    .get((req, res) => {
-      res.json(STORE)
+    .get((req, res, next) => {
+      const knexInstance = req.app.get('db');
+      BookmarksService.getAllBookmarks(knexInstance)
+        .then(bookmarks => {
+          res.json(bookmarks)
+        })
     })
     .post(bodyParser, (req, res) => {
       const { title, url, description=false, rating=false } = req.body
