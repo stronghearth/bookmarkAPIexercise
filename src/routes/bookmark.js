@@ -79,7 +79,9 @@ bookmarkRouter
           logger.error(`Bookmark with id ${id} not found`);
           return res  
                   .status(404)
-                  .send('Bookmark Not Found');
+                  .json({
+                    error: { message: 'Bookmark not found'}
+                  })
         }
         res.json(bookmark)
       })

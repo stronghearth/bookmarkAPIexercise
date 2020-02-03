@@ -21,6 +21,21 @@ describe.only('Bookmark Endpoints', () => {
     afterEach('cleanup table', () => db('my_bookmarks').truncate())
 
     describe('GET /bookmarks', () => {
+        context('given no authorization', () => {
+            it('returns a 401 error when no authorization passed', () => {
+                return supertest(app)
+                        .get('/bookmarks')
+                        .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+        context('given there are no bookmarks', () => {
+            it('GET /bookmarks returns 200 with empty array', () => { 
+            return supertest(app)
+                    .get('/bookmarks')
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .expect(200, [])
+            })
+        })
         context('given there are bookmarks in the database', () => {
             const testBookmarks = makeBookmarksArray()
             beforeEach('insert bookmarks', () => {
@@ -37,6 +52,23 @@ describe.only('Bookmark Endpoints', () => {
         })
     }) 
     describe('GET /bookmarks/:bookmarkId', () => {
+        context('given no authorization', () => {
+            it('returns a 401 error when no authorization passed', () => {
+                bookmarkId = 2
+                return supertest(app)
+                        .get(`/bookmarks/${bookmarkId}`)
+                        .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+        context('given there are no bookmarks in the database with the id', () => {
+            it('responds with a 404', () => {
+            const bookmarkId = 123456;
+            return supertest(app)
+                    .get(`/bookmarks/${bookmarkId}`)
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .expect(404, {error: {message: 'Bookmark not found' }})
+            })    
+        })
         context('given there are bookmarks in the database', () => {
             const testBookmarks = makeBookmarksArray()
             beforeEach('insert bookmarks', () => {
