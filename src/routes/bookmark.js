@@ -16,6 +16,7 @@ bookmarkRouter
         .then(bookmarks => {
           res.json(bookmarks)
         })
+        .catch(next)
     })
     .post(bodyParser, (req, res) => {
       const { title, url, description=false, rating=false } = req.body
@@ -69,20 +70,21 @@ bookmarkRouter
 
 bookmarkRouter
     .route('/:id')
-    .get((req, res) => {
+    .get((req, res, next) => {
       const { id } = req.params;
-      const bookmark = STORE.bookmarks.find(b => b.id === id);
-
+      const knexInstance = req.app.get('db');
+      BookmarksService.getById(knexInstance, id)
+        .then(bookmark => {
       if (!bookmark) {
           logger.error(`Bookmark with id ${id} not found`);
           return res  
                   .status(404)
                   .send('Bookmark Not Found');
-      }
-    
-    res.json(bookmark);
-      
-    })
+        }
+        res.json(bookmark)
+      })
+        .catch(next)
+  })
     .delete((req, res) => {
       const {id} = req.params;
 
