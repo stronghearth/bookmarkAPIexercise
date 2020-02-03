@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const knex = require('knex');
 const app = require('../src/app');
-const { makeBookmarksArray } = require('./bookmarks.fixtures');
+const { makeBookmarksArray, makeMaliciousBookmark } = require('./bookmarks.fixtures');
 
 describe.only('Bookmark Endpoints', () => {
     let db;
@@ -50,6 +50,26 @@ describe.only('Bookmark Endpoints', () => {
                     .expect(200, testBookmarks)
             })
         })
+        context('given an XSS attack bookmark', () => {
+            const { maliciousBookmark, expectedBookmark } = makeMaliciousBookmark();
+
+            beforeEach('insert malicious article', () => {
+                return db
+                    .into('my_bookmarks')
+                    .insert([maliciousBookmark]);
+            })
+
+            it('removes XSS attack content', () => {
+                return supertest(app)
+                        .get('/bookmarks')
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .expect(200)
+                        .expect(res => {
+                            expect(res.body[0].title).to.eql(expectedBookmark.title)
+                            expect(res.body[0].description).to.eql(expectedBookmark.description)
+                        })
+            })
+        })
     }) 
     describe('GET /bookmarks/:bookmarkId', () => {
         context('given no authorization', () => {
@@ -84,6 +104,113 @@ describe.only('Bookmark Endpoints', () => {
                     .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
                     .expect(200, expectedBookmark)
             })
+        })
+        context('given an XSS attack bookmark', () => {
+            const { maliciousBookmark, expectedBookmark } = makeMaliciousBookmark()
+
+            beforeEach('insert malicious article', () => {
+                return db
+                    .into('my_bookmarks')
+                    .insert([ maliciousBookmark ])
+            })
+
+            it('removes XSS attack content', () => {
+                return supertest(app)
+                        .get(`/bookmarks/${maliciousBookmark.id}`)
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .expect(200)
+                        .expect(res => {
+                            expect(res.body.title).to.eql(expectedBookmark.title)
+                            expect(res.body.description).to.eql(expectedBookmark.description)
+                        })
+            })
+        })
+    })
+    describe('POST /bookmarks', () => {
+        it('creates an bookmark, responds with 201 and the new article', () => {
+            const newBookmark = {
+                title: 'Test new website',
+                url: 'https://www.awesomesite.com',
+                description: 'This test website rules!',
+                rating: '3'
+            }
+            return supertest(app)
+                    .post('/bookmarks')
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .send(newBookmark)
+                    .expect(201)
+                    .expect(res => {
+                        expect(res.body.title).to.eql(newBookmark.title)
+                        expect(res.body.url).to.eql(newBookmark.url)
+                        expect(res.body.description).to.eql(newBookmark.description)
+                        expect(res.body.rating).to.eql(newBookmark.rating)
+                        expect(res.body).to.have.property('id')
+                        expect(res.headers.location).to.eql(`/bookmarks/${res.body.id}`)
+                    })
+        })
+        const requiredFields = ['title', 'url', 'rating'];
+            requiredFields.forEach(field => {
+                const newBookmark = {
+                    title: 'Test new website',
+                    url: 'https://www.awesomesite.com',
+                    rating: '3'
+                }
+            
+            it(`responds with 400 error and message when the ${field} is missing`, () => {
+                delete newBookmark[field]
+
+                return supertest(app)
+                        .post('/bookmarks')
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .send(newBookmark)
+                        .expect(400, {
+                            error: {message: `Missing '${field} in request body`}
+                        })
+            })
+         })
+
+        it(`responds with 400 error and error message when url doesn't start with http or https`, () => {
+            const badURLBookmark = {
+                title: 'Test new website',
+                url: 'www.awesomesite.com',
+                rating: '3'
+            }
+            return supertest(app)
+                        .post('/bookmarks')
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .send(badURLBookmark)
+                        .expect(400, {
+                            error: {message: `URL needs to begin with http or https`}
+                        })
+
+        })
+        it('responds with 400 error and error message when rating is between 1 and 5', () => {
+            const badRatingBookmark = {
+                title: 'Test new website',
+                url: 'https://www.awesomesite.com',
+                rating: '6'
+            }
+            return supertest(app)
+                        .post('/bookmarks')
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .send(badRatingBookmark)
+                        .expect(400, {
+                            error: {message: `Rating needs to be between 1 and 5`}
+                        })
+
+        }) 
+        it('removes XSS attack content from response', () => {
+            const { maliciousBookmark, expectedBookmark } = makeMaliciousBookmark();
+
+            return supertest(app)
+                    .post('/bookmarks')
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .send(maliciousBookmark)
+                    .expect(201)
+                    .expect(res => {
+                        expect(res.body.title).to.eql(expectedBookmark.title)
+                        expect(res.body.description).to.eql(expectedBookmark.description)
+                    })
         })
     })
 })
