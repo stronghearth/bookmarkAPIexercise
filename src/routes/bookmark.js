@@ -3,8 +3,6 @@ const express = require('express');
 const xss = require('xss');
 const bookmarkRouter = express.Router();
 const logger = require('../helpers/logger');
-const STORE = require('../store');
-const uuid = require('uuid/v4')
 const bodyParser = express.json();
 const { BookmarksService } = require('../../services/BookmarksService')
 
@@ -46,7 +44,8 @@ bookmarkRouter
         return res
                 .status(400)
                 .json({
-                  error: { message: 'URL needs to begin with http or https'}})
+                  error: { message: 'URL needs to begin with http or https'}
+                })
       }
 
       if(rating) {
@@ -56,7 +55,8 @@ bookmarkRouter
           return res
                   .status(400)
                   .json({
-                    error: { message: 'Rating needs to be between 1 and 5'}})
+                    error: { message: 'Rating needs to be between 1 and 5' }
+                  })
         }
       }
 
@@ -72,7 +72,7 @@ bookmarkRouter
 
 bookmarkRouter
     .route('/:id')
-    .get((req, res, next) => {
+    .all((req, res, next) => {
       const { id } = req.params;
       const knexInstance = req.app.get('db');
       BookmarksService.getById(knexInstance, id)
@@ -85,9 +85,25 @@ bookmarkRouter
                     error: { message: 'Bookmark not found'}
                   })
         }
+       res.bookmark = bookmark
+       next()
+      }) 
+        .catch(next)
+    })
+    .get((req, res) => {
         res.json(serializeBookmarks(bookmark))
       })
-        .catch(next)
+ 
+    .delete((req, res, next) => {
+      const knexInstance = req.app.get('db')
+      const { id } = req.params
+    
+        BookmarksService.deleteBookmark(knexInstance, id)
+            .then(numRowsAffected => {
+              logger.info(`Bookmark with id ${id} deleted`)
+              res.status(204).end()
+            })
+            .catch(next)
   })
     
 

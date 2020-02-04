@@ -126,6 +126,46 @@ describe.only('Bookmark Endpoints', () => {
             })
         })
     })
+    describe.only('DELETE /bookmarks/:bookmarkId', () => {
+        context('given no authorization', () => {
+            it('returns a 401 error when no authorization passed', () => {
+                return supertest(app)
+                        .delete('/bookmarks/:bookmarkId')
+                        .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+        context('Given no bookmarks', () => {
+            it('responds with a 404', () => {
+                return supertest(app)
+                        .delete(`/bookmarks/543215`)
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .expect(404, { error: {message: 'Bookmark not found' } })
+            })
+        })
+        context('given there are bookmarks in the database', () => {
+            const testBookmarks = makeBookmarksArray()
+
+            beforeEach('insert bookmarks', () => {
+                return db
+                    .into('my_bookmarks')
+                    .insert(testBookmarks)
+            })
+
+            it('removes the bookmark by id from the database', () => {
+                const testId = 2
+                const expectedBookmarks = testBookmarks.filter(bm => bm.id !== testId)
+                return supertest(app)
+                        .delete(`/bookmarks/${testId}`)
+                        .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                        .expect(204)
+                        .then(() => 
+                            supertest(app)
+                                .get('/bookmarks')
+                                .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                                .expect(expectedBookmarks))
+            })
+        })
+    })
     describe('POST /bookmarks', () => {
         it('creates an bookmark, responds with 201 and the new article', () => {
             const newBookmark = {
@@ -213,4 +253,5 @@ describe.only('Bookmark Endpoints', () => {
                     })
         })
     })
+    
 })
